@@ -1,4 +1,4 @@
-all: venv hostin install
+all: venv hosting install
 
 venv:
 	apt-get update
