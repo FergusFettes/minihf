@@ -13,9 +13,12 @@ hosting:
 	-apt-get install -y mosh et
 	snap install ngrok
 
-electron:
+install-electron:
 	-apt-get install -y npm
-	npm install -g electron
+	cd loom && npm install
+
+run-electron:
+	cd loom && npm run
 
 install:
 	. venv/bin/activate && pip install -r requirements.txt
@@ -25,4 +28,4 @@ run:
 
 host:
 	ngrok config add-authtoken $(TOKEN)
-	ngrok http 5000
+	ngrok http 5000 --scheme=http 
