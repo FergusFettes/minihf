@@ -1,80 +1,8 @@
-#!/usr/bin/env python3
-
-"""Fine-tunes a language model on pre-tokenized data."""
-
-import argparse
-import random
-import json
-import zipfile
-from pathlib import Path
-from itertools import chain, islice
-import sys
-
-import accelerate
-import peft
-import torch
-from torch import optim
-from torch.utils import data
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
-from datasets import load_dataset
-from tqdm import trange, tqdm
-
-print = tqdm.external_write_mode()(print)
-
-
-class ZippedConversationsDataset:
-    def __init__(self, zip_file):
-        self.training_items = []
-        zip_ = zipfile.ZipFile(zip_file)
-        for file_ in zip_.namelist():
-            if file_.endswith("/"): # Skip directories
-                continue
-            if file_.startswith("__MACOSX"): # Mac OS X adds garbage to zips
-                continue
-            with zip_.open(file_) as infile:
-                if file_.endswith(".txt"):
-                    self.training_items.append(infile.read().decode('UTF-8'))
-                else:
-                    conversation = json.load(infile)
-                    for id_ in conversation["responseDict"]:
-                        branch = conversation["responseDict"][id_]
-                        if branch["rating"] == True:
-                            text = branch["prompt"] + branch["text"]
-                            self.training_items.append(text)
-        random.shuffle(self.training_items)
-
-    def __len__(self):
-        return len(self.training_items)
-        
-    def __next__(self):
-        return random.sample(self.training_items, 1)[0]
-
-
-def batched(iterable, n):
-    "Batch data into tuples of length n. The last batch may be shorter."
-    # batched('ABCDEFG', 3) --> ABC DEF G
-    if n < 1:
-        raise ValueError("n must be at least one")
-    it = iter(iterable)
-    while batch := tuple(islice(it, n)):
-        yield batch
-        
-
-def batch_to_tensors(batch, tokenizer, context, device="cpu"):
-    document_tokens = tokenizer(batch).input_ids
-    for tokens in document_tokens:
-        tokens.append(tokenizer.eos_token_id)
-    chunks = list(batched(chain.from_iterable(document_tokens), context))
-    seq_len = max(len(x) for x in chunks)
-    input_ids = torch.zeros(len(chunks), seq_len, dtype=torch.long, device=device)
-    attention_mask = torch.zeros(len(chunks), seq_len, dtype=torch.long, device=device)
-    for i, x in enumerate(chunks):
-        input_ids[i, : len(x)] = torch.tensor(x, dtype=torch.long, device=device)
-        attention_mask[i, : len(x)] = 1
-    return input_ids, attention_mask
-
-
-def main():
+```python
+def parse_args():
+    """
+    Parse arguments from command line.
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--batch-size", type=int, default=4, help="microbatch size")
     parser.add_argument(
@@ -98,15 +26,12 @@ def main():
     parser.add_argument("--output", type=Path, required=True, help="path to save adapter")
     parser.add_argument("--rank", type=int, default=8, help="the lora rank")
     parser.add_argument("--start-from", type=str, help="start from existing lora")
-    args = parser.parse_args()
+    return parser.parse_args()
 
-    accelerator = accelerate.Accelerator(
-        mixed_precision="bf16", gradient_accumulation_steps=args.gradient_accumulation_steps
-    )
-    device = accelerator.device
-    is_main = accelerator.is_main_process
-    print0 = accelerator.on_main_process(print)
-
+def get_model(args, accelerator):
+    """
+    Handle the model loading/initialization.
+    """
     if Path(args.model).exists():
         model_name = Path(args.model).resolve()
     else:
@@ -129,60 +54,53 @@ def main():
             torch_dtype=torch.bfloat16,
             trust_remote_code=True,
         )
-    accelerator.wait_for_everyone()
+        return model_base, tokenizer
 
-    dropout = (0.0 if args.epochs == 1 else 0.1) if args.dropout is None else args.dropout
-    if args.start_from is not None:
-        print0(f"Loading adapter: {args.start_from}", file=sys.stderr)
-        with accelerator.main_process_first():
-            model = peft.PeftModel.from_pretrained(model_base, args.start_from, is_trainable=True)
+def init_adapter(args, dropout, accelerator, model_base):
+    """
+    Initialize the model adapter.
+    """
+    print0("Initializing adapter", file=sys.stderr)
+    peft_config = peft.LoraConfig(
+        peft.TaskType.CAUSAL_LM,
+        inference_mode=False,
+        r=args.rank,
+        lora_alpha=8,
+        lora_dropout=dropout,
+        target_modules=[
+            "self_attn.q_proj",
+            "self_attn.k_proj",
+            "self_attn.v_proj",
+            "self_attn.o_proj",
+            "mlp.gate_proj",
+            "mlp.up_proj",
+            "mlp.down_proj",
+            "lm_head",
+        ],
+    )
+    model = peft.get_peft_model(model_base, peft_config)
+    return model
+
+def load_adapter(args, dropout, accelerator, model_base):
+    """
+    Load an existing model adapter.
+    """
+    print0(f"Loading adapter: {args.start_from}", file=sys.stderr)
+    with accelerator.main_process_first():
+        model = peft.PeftModel.from_pretrained(model_base, args.start_from, is_trainable=True)
         if args.dropout is not None:
             model.active_peft_config.lora_dropout = dropout
-    else:
-        print0("Initializing adapter", file=sys.stderr)
-        peft_config = peft.LoraConfig(
-            peft.TaskType.CAUSAL_LM,
-            inference_mode=False,
-            r=args.rank,
-            lora_alpha=8,
-            lora_dropout=dropout,
-            target_modules=[
-                "self_attn.q_proj",
-                "self_attn.k_proj",
-                "self_attn.v_proj",
-                "self_attn.o_proj",
-                "mlp.gate_proj",
-                "mlp.up_proj",
-                "mlp.down_proj",
-                "lm_head",
-            ],
-        )
-        model = peft.get_peft_model(model_base, peft_config)
-    accelerator.wait_for_everyone()
+        return model
 
-    model.train()
-    if args.gradient_checkpointing:
-        model.gradient_checkpointing_enable()
-        model.enable_input_require_grads()
-
-    if is_main:
-        model.print_trainable_parameters()
-
-    opt = optim.Adam(model.parameters(), lr=args.lr, betas=(0.9, 0.99))
-    
-    user_dataset = ZippedConversationsDataset(args.user_dataset)
-    user_preprocessed = batch_to_tensors(user_dataset.training_items,
-                                         tokenizer,
-                                         args.context)
-
-    pretraining_dataset = load_dataset(args.pretraining_dataset)
-        
+def get_and_prepare_data(args, user_dataset, pretraining_dataset):
+    """
+    Preprocess data and set up dataloaders.
+    """
     pretraining_dataloader = data.DataLoader(
         pretraining_dataset['train']['text'],
         batch_size=1,
         shuffle=True,
     )
-
     user_data_tokens = user_preprocessed[0].shape[0] * args.context
     min_tokens = (1024 ** 2 * 5)  # Roughly ten megabytes
     pretraining_preprocessed = []
@@ -212,9 +130,12 @@ def main():
         batch_size=args.batch_size,
         shuffle=True,
     )
-            
-    model, opt, dataloader = accelerator.prepare(model, opt, dataloader)
+    return dataloader
 
+def train_and_save(args, model, opt, dataloader, accelerator):
+    """
+    Train the model and save the weights.
+    """
     i = 0
     for epoch in trange(args.epochs, disable=not is_main):
         for input_ids, attention_mask in tqdm(dataloader, disable=not is_main):
@@ -246,6 +167,16 @@ def main():
         print0(f"Saving adapter to {args.output}", file=sys.stderr)
         accelerator.unwrap_model(model).save_pretrained(args.output, safe_serialization=True)
 
-
-if __name__ == "__main__":
-    main()
+def main():
+    args = parse_args()
+    accelerator = setup_accelerator(args)
+    print0 = accelerator.on_main_process(print)
+    model_base, tokenizer = get_model(args, accelerator)
+    dropout = calculate_dropout(args)
+    if args.start_from is not None:
+        model = load_adapter(args, dropout, accelerator, model_base)
+    else:
+        model = init_adapter(args, dropout, accelerator, model_base)
+    model, opt, dataloader = prepare_model_and_data(args, model, accelerator)
+    train_and_save(args, model, opt, dataloader, accelerator)
+```
