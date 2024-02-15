@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 from app.services.generation_service import generate_text
-from app.schemas import GenerateRequest, OpenAIRequest
+from app.schemas import GenerateRequest, OpenAIRequest, TokenCheckRequest
 from app.core.model_loading import load_generator_evaluator
 
 router = APIRouter()
@@ -30,7 +30,7 @@ async def train_model():
 
 
 @router.post("/check-tokens", tags=["tokenization"])
-async def check_tokens(text: str):
+async def check_tokens(request: TokenCheckRequest):
     """
     Check the number of tokens in the given text using the specified tokenizer.
 
@@ -42,6 +42,6 @@ async def check_tokens(text: str):
         int: The number of tokens in the text.
     """
     tokenizer, _, _, _ = load_generator_evaluator()
-    inputs = tokenizer([text] * 1, return_tensors="pt", truncation=True, max_length=4096).to("cuda")
+    inputs = tokenizer([request.text] * 1, return_tensors="pt", truncation=True, max_length=4096).to("cuda")
     return inputs['input_ids'][0].shape[0]
 

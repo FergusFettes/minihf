@@ -29,3 +29,7 @@ class WeaveRequest(BaseModel):
     weave_beam_width: int = 1
     weave_max_lookahead: int = 3
     weave_temperature: float = 0.25
+
+
+class TokenCheckRequest(BaseModel):
+    text: str
