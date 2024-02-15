@@ -14,7 +14,19 @@ async def generate(request: GenerateRequest):
 
 @router.post("/generate_openai", tags=["generation"])
 async def generate_openai(request: OpenAIRequest):
-    return generate_text(request.dict())
+    # Format response as an OpenAI response
+    response = generate_text(request.dict())
+    response = {
+        "choices": [
+            {
+                "text": response["text"],
+                "index": 0,
+                "logprobs": None,
+                "finish_reason": "length"
+            }
+        ]
+    }
+    return response
 
 
 @router.get("/evaluate", tags=["evaluation"])
