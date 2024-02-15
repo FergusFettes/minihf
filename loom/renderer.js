@@ -357,7 +357,7 @@ async function getSummary(taskText) {
 	    }
 	});
 	let batch = await r.json();
-	return batch[1]["text"].trim();
+	return batch[0]["text"].trim();
     } // TODO: Figure out how I might have to change this if I end up supporting
     // multiple APIs
     else {
