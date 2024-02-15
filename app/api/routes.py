@@ -19,7 +19,7 @@ async def generate_openai(request: OpenAIRequest):
     response = {
         "choices": [
             {
-                "text": response["text"],
+                "text": response[0]["text"],
                 "index": 0,
                 "logprobs": None,
                 "finish_reason": "length"
