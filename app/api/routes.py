@@ -6,7 +6,7 @@ from app.schemas import GenerateRequest
 router = APIRouter()
 
 
-@router.get("/generate", tags=["generation"])
+@router.post("/generate", tags=["generation"])
 async def generate(request: GenerateRequest):
     return generate_text(request.dict())
 

@@ -29,3 +29,8 @@ run_fast:
 host:
 	ngrok config add-authtoken $(TOKEN)
 	ngrok http 5000
+
+test:
+	curl -X POST "http://localhost:8000/generate" \
+     -H "Content-Type: application/json" \
+     -d '{"prompt": "Once upon a time", "tokens_per_branch": 50, "output_branches": 3}'
