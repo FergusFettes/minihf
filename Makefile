@@ -23,6 +23,9 @@ install:
 run:
 	. venv/bin/activate && flask --app minihf_infer run
 
+run_fast:
+	. venv/bin/activate && uvicorn app.api.main:app --reload
+
 host:
 	ngrok config add-authtoken $(TOKEN)
 	ngrok http 5000
