@@ -14,7 +14,6 @@ import peft
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 from transformers import StoppingCriteria, StoppingCriteriaList
 from transformers import BitsAndBytesConfig
-from bigvae import DecoderOnlyTransformerVAE, VAERouter, mk_task_vector, generate_guided
 from weave import weave_tree_search, generate_outputs, evaluate_outputs
 from weave import make_score_prompt_fn, TreeNode
 from lora_tune import lora_tune_evaluator
@@ -76,17 +75,8 @@ def load_generator_evaluator():
             "mlp.down_proj",
         ],
     )
-    if os.path.exists("BigVAE-Mistral-7B-v0.2"):
-        vae_model = DecoderOnlyTransformerVAE(
-            model, "cuda:0", peft_config, z_dim=768,
-        )
-        vae_model.load_pretrained("BigVAE-Mistral-7B-v0.2")
-        vae_model.vae.requires_grad_(False)
-        router = VAERouter(model, vae_model, "cuda:0", peft_config)
-        router.load_pretrained("BigVAE-Mistral-7B-v0.2")
-    else:
-        vae_model = None
-        router = None
+    vae_model = None
+    router = None
     return tokenizer, model, vae_model, router
 
 def load_models():
