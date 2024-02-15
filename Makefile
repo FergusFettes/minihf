@@ -34,3 +34,8 @@ test:
 	curl -X POST "http://localhost:5000/generate" \
      -H "Content-Type: application/json" \
      -d '{"prompt": "Once upon a time", "tokens_per_branch": 50, "output_branches": 3}'
+
+test_openai:
+	curl -X POST "http://localhost:5000/generate_openai" \
+     -H "Content-Type: application/json" \
+     -d '{"prompt": "Once upon a time", "max_tokens": 50}'

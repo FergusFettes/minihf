@@ -85,10 +85,10 @@ def weave_search(params):
     score_prompt_fn = partial(score_prompt_fn, "<|end|>")
     # Change name to avoid overwriting global baseline evaluate_fn partial
     score_fn = partial(evaluate_fn, score_prompt_fn)
-    weave_param_defaults = {"weave_n_tokens":32, "weave_budget":72,
-                            "weave_round_budget":24, "weave_n_expand":8,
-                            "weave_beam_width":1, "weave_max_lookahead":3,
-                            "weave_temperature":0.25}
+    weave_param_defaults = {"weave_n_tokens": 32, "weave_budget": 72,
+                            "weave_round_budget": 24, "weave_n_expand": 8,
+                            "weave_beam_width": 1, "weave_max_lookahead": 3,
+                            "weave_temperature": 0.25}
     wp = {}
     for key in weave_param_defaults.keys():
         if key in params:
@@ -112,22 +112,22 @@ def weave_search(params):
     if prompt_node:
         timestamp = str(time.time())
         id_ = hashlib.md5((prompt + timestamp).encode("UTF-8")).hexdigest()
-        batch.append({"id":id_,
-                      "prompt":prompt,
-                      "evaluationPrompt":evaluation_prompt,
-                      "text":"",
-                      "timestamp":timestamp,
-                      "nodes":[]})
+        batch.append({"id": id_,
+                      "prompt": prompt,
+                      "evaluationPrompt": evaluation_prompt,
+                      "text": "",
+                      "timestamp": timestamp,
+                      "nodes": []})
     for branch in branches:
         branch_text = branch.branch_text()
         timestamp = str(time.time())
         id_ = hashlib.md5((branch_text + timestamp).encode("UTF-8")).hexdigest()
-        batch.append({"id":id_,
+        batch.append({"id": id_,
                       "prompt": prompt,
                       "evaluationPrompt": evaluation_prompt,
-                      "text":branch_text,
-                      "timestamp":timestamp,
-                      "nodes":branch.serialize_branch()})
+                      "text": branch_text,
+                      "timestamp": timestamp,
+                      "nodes": branch.serialize_branch()})
     return batch
 
 
