@@ -1,10 +1,8 @@
 from functools import lru_cache
 from contextlib import contextmanager
-import os
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 import peft
 import torch
-from bigvae import DecoderOnlyTransformerVAE, VAERouter
 
 
 @lru_cache
@@ -49,17 +47,8 @@ def load_generator_evaluator():
             "mlp.down_proj",
         ],
     )
-    if os.path.exists("BigVAE-Mistral-7B-v0.2"):
-        vae_model = DecoderOnlyTransformerVAE(
-            model, "cuda:0", peft_config, z_dim=768,
-        )
-        vae_model.load_pretrained("BigVAE-Mistral-7B-v0.2")
-        vae_model.vae.requires_grad_(False)
-        router = VAERouter(model, vae_model, "cuda:0", peft_config)
-        router.load_pretrained("BigVAE-Mistral-7B-v0.2")
-    else:
-        vae_model = None
-        router = None
+    vae_model = None
+    router = None
     return tokenizer, model, vae_model, router
 
 
