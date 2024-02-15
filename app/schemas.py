@@ -3,10 +3,8 @@ from pydantic import BaseModel
 
 class GenerateRequest(BaseModel):
     prompt: str
-    prompt_node: bool = False
-    context: str
-    new_tokens: int
-    weave_beam_width: int
+    tokens_per_branch: int
+    output_branches: int
 
 
 class WeaveRequest(BaseModel):
