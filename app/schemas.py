@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 
 
-class GenerateParam(BaseModel):
+class GenerateRequest(BaseModel):
     prompt: str
     prompt_node: bool = False
     context: str
@@ -9,7 +9,7 @@ class GenerateParam(BaseModel):
     weave_beam_width: int
 
 
-class WeaveParam(BaseModel):
+class WeaveRequest(BaseModel):
     prompt: str
     prompt_node: bool = False
     context: str
