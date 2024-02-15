@@ -24,7 +24,7 @@ run:
 	. venv/bin/activate && flask --app minihf_infer run
 
 run_fast:
-	. venv/bin/activate && uvicorn app.api.main:app --reload
+	. venv/bin/activate && uvicorn app.api.main:app --reload --host 0.0.0.0 --port 8000
 
 host:
 	ngrok config add-authtoken $(TOKEN)
