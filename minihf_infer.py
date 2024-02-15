@@ -51,7 +51,7 @@ def load_generator_evaluator():
     )
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
-        device_map="auto",
+        device_map="cuda:0",
         quantization_config=bnb_config,
         torch_dtype=torch.bfloat16,
         trust_remote_code=True,

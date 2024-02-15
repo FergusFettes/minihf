@@ -1,9 +1,12 @@
+import logging
 from functools import partial
 import hashlib
 import time
 
 from weave import generate_outputs
 from app.core.model_loading import load_generator_evaluator, set_adapter
+
+logger = logging.getLogger(__name__)
 
 
 def generate_text(params):
@@ -17,8 +20,22 @@ def generate_text(params):
         prompt_node = params['prompt_node']
     else:
         prompt_node = False
-    new_tokens = int(params['tokens_per_branch'])
-    n_outputs = int(params['output_branches'])
+    if 'tokens_per_branch' in params:
+        new_tokens = int(params['tokens_per_branch'])
+    elif 'max_tokens' in params:
+        new_tokens = int(params['max_tokens'])
+    else:
+        new_tokens = 32
+        logger.info("No tokens_per_branch or max_tokens provided, defaulting to 32")
+
+    if 'output_branches' in params:
+        n_outputs = int(params['output_branches'])
+    elif 'n' in params:
+        n_outputs = int(params['n'])
+    else:
+        n_outputs = 1
+        logger.info("No output_branches or n provided, defaulting to 1")
+
     base_model_name = generator[1].active_peft_config.base_model_name_or_path
     try:
         adapter = params["adapter"]

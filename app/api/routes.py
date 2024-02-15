@@ -1,13 +1,18 @@
 from fastapi import APIRouter
 
 from app.services.generation_service import generate_text
-from app.schemas import GenerateRequest
+from app.schemas import GenerateRequest, OpenAIRequest
 
 router = APIRouter()
 
 
 @router.post("/generate", tags=["generation"])
 async def generate(request: GenerateRequest):
+    return generate_text(request.dict())
+
+
+@router.post("/generate_openai", tags=["generation"])
+async def generate_openai(request: OpenAIRequest):
     return generate_text(request.dict())
 
 
@@ -21,3 +26,4 @@ async def evaluate_model():
 async def train_model():
     # Placeholder for model training logic
     return {"message": "This is a placeholder for the model training endpoint."}
+from app.schemas import OpenAIRequest
